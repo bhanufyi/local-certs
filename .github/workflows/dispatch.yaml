@@ -1,0 +1,21 @@
+name: "add a file and commit"
+
+on:
+  workflow_dispatch:
+
+jobs:
+    add-file:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  token: ${{ secrets.PAT }}
+            - name: Add a file
+              run: |
+                  timestamp=$(date +%s)
+                  echo "Hello World" > hello${timestamp}.txt
+                  git config --global user.name "Github Actions"
+                  git config --global user.email "action@github.com"
+                  git add .
+                  git commit -m "Add a file at ${timestamp}"
+                  git push

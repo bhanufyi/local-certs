@@ -1,0 +1,75 @@
+name: "Renew local development SSH certificates"
+on:
+    schedule:
+        - cron: "0 8 1 */3 *"
+    workflow_dispatch:
+
+jobs:
+    renew-local-ssh-certs:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Kill docker container if exist
+              run: docker rm my-container || true
+            - uses: actions/checkout@v3
+              with:
+                  working-directory: .
+            #   with:
+            #       token: ${{ secrets.PAT }}
+            # - name: Get Clouflare token from gcp secrets manager
+            #   run: |
+            #       # this step can be removed if we have token as a secret in github
+            #       CLOUDFLARE_EDIT_ZONE_DNS_TOKEN=$(gcloud secrets versions access latest --secret=CLOUDFLARE_EDIT_ZONE_DNS_TOKEN --project=realadvisor-admin)
+            #       echo "::add-mask::$CLOUDFLARE_EDIT_ZONE_DNS_TOKEN"
+            #       echo "CLOUDFLARE_EDIT_ZONE_DNS_TOKEN=$CLOUDFLARE_EDIT_ZONE_DNS_TOKEN" >> $GITHUB_ENV
+            - name: add token
+              env:
+                  CLOUDFLARE_EDIT_ZONE_DNS_TOKEN: ${{ secrets.CF_EDIT_ZONE_TOKEN }}
+              run: |
+                  rm -rf  ${GITHUB_WORKSPACE}/certbot
+                  rm -rf ${GITHUB_WORKSPACE}/letsencrypt/
+                  mkdir -p ${GITHUB_WORKSPACE}/certbot/
+                  mkdir -p ${GITHUB_WORKSPACE}/letsencrypt/
+                  cat > ${GITHUB_WORKSPACE}/certbot/cloudflare.ini <<-DOCKERFILE
+                  dns_cloudflare_api_token = ${CLOUDFLARE_EDIT_ZONE_DNS_TOKEN}
+                  DOCKERFILE
+                  chmod 600 ${GITHUB_WORKSPACE}/certbot/cloudflare.ini
+            - name: List certificates
+              run: |
+                  ls -lR ${GITHUB_WORKSPACE}/certbot/
+            - name: Renew local SSH certificates
+              run: |
+                  docker run --rm --name certbot \
+                  -v "${GITHUB_WORKSPACE}/letsencrypt/data:/etc/letsencrypt" \
+                  -v "${GITHUB_WORKSPACE}/certbot:/local/certbot" \
+                  certbot/dns-cloudflare:v2.6.0 --verbose certonly \
+                  -m bhanuprasadcherukuvada2000@gmail.com \
+                  --dns-cloudflare \
+                  --dns-cloudflare-credentials /local/certbot/cloudflare.ini \
+                  --agree-tos \
+                  --test-cert \
+                  -n \
+                  -v \
+                  -d local-test-portfolio.bhanuprasad.in
+
+            - name: Adjust permissions for letsencrypt directories
+              run: sudo chown -R runner:runner ${GITHUB_WORKSPACE}/letsencrypt/
+
+            - name: List certificates
+              run: |
+                  ls -lR ${GITHUB_WORKSPACE}/letsencrypt/
+
+            - name: Commit and push changes
+              run: |
+                  # Remove existing symlinks
+                  rm cert.pem chain.pem fullchain.pem privkey.pem README
+                  cp -Lr ${GITHUB_WORKSPACE}/letsencrypt/data/live/local-test-portfolio.bhanuprasad.in/* ./
+                  # Git operations
+                  git config --global user.email "action@github.com"
+                  git config --global user.name "Github Action"
+                  git add cert.pem chain.pem fullchain.pem privkey.pem README
+                  git commit -m "Renew local development SSL certificates $(date + '%Y-%m-%d %H:%M:%S')"
+                  git push
+            - name: cleanup
+              run: |
+                  rm -rf ${GITHUB_WORKSPACE}/certbot
+                  rm -rf ${GITHUB_WORKSPACE}/letsencrypt/

@@ -1,0 +1,22 @@
+name: reusable workflow
+on: 
+  workflow_call:
+    inputs:
+      name:
+        description: 'Name to greet'
+        required: true
+        type: string
+        default: 'World'
+    outputs:
+      output1:
+        description: 'The output 1'
+        value: ${{ jobs.reusable-job.outputs.output1 }}
+
+jobs:
+    reusable-job:
+      runs-on: ubuntu-latest
+      outputs:
+        output1: ${{steps.step1.outputs.hello}}
+      steps:
+        - id: step1
+          run: echo "hello=${{ inputs.name }}" >> $GITHUB_OUTPUT

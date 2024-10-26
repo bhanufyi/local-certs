@@ -1,0 +1,31 @@
+on:
+    workflow_dispatch:
+
+jobs:
+    writetest:
+        runs-on: ubuntu-latest
+        steps:
+            - name: file in github.workspace
+              run: |
+                  echo "hello world" > ${{ github.workspace }}/hello.txt
+                  ls -l ${{ github.workspace }}
+            - name: upload artifact
+              uses: actions/upload-artifact@v2
+              with:
+                  name: myartifact
+                  path: ${{ github.workspace }}/hello.txt
+    nextjob:
+        runs-on: ubuntu-latest
+        needs: writetest
+        steps:
+            - name: dump
+              run: |
+                  ls -l ${{ github.workspace }}
+            - name: download artifact
+              uses: actions/download-artifact@v2
+              with:
+                  name: myartifact
+                  path: ${{ github.workspace }}
+            - name: dump again
+              run: |
+                  ls -l ${{ github.workspace }}

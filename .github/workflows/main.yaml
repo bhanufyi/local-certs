@@ -1,0 +1,59 @@
+name: Build and Test
+
+on:
+    workflow_dispatch:
+
+jobs:
+    logger_job:
+        name: "logger job"
+        runs-on: ubuntu-latest
+        steps:
+            - name: "github ref"
+              run: echo ${{ github.ref}}
+            - run: echo ${{github.ref_name }}
+            - if: github.ref_name == 'test_b' || contains(github.ref_name, format('test_{0}','b'))
+              name: "logging test_b"
+              run: |
+                  ls -la
+                  cd src 
+                  ls -la
+                  echo $vari
+              env: 
+                vari: format('test_{0}','b')
+    example_job:
+        name: Generate output
+        runs-on: ubuntu-latest
+        # Map the job outputs to step outputs
+        outputs:
+            output1: ${{ steps.step1.outputs.firstword }}
+            output2: ${{ steps.step2.outputs.secondword }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+            - name: "set output"
+              id: step1
+              run: echo "firstword=hello" >> $GITHUB_OUTPUT
+            - name: "set output 1"
+              run: echo $GITHUB_OUTPUT
+            - id: step2
+              run: |
+                  echo "secondword=world" >> $GITHUB_OUTPUT
+                  echo $GITHUB_OUTPUT
+    workflow_as_job:
+        name: "calling test reusable workflow"
+        uses: ./.github/workflows/test.yaml
+    workflow2_as_job:
+        name: "calling workflow2"
+        uses: ./.github/workflows/workflow2.yaml
+        with:
+            name: "world"
+    example_job2:
+        name: "use output from example_job"
+        runs-on: ubuntu-latest
+        needs: [example_job, workflow2_as_job]
+        steps:
+            - name: "use output"
+              run: |
+                  echo example job output1 : ${{ needs.example_job.outputs.output1 }}
+                  echo example job output2 : ${{ needs.example_job.outputs.output2 }}
+                  echo example job output3 : ${{ needs.workflow2_as_job.outputs.output1 }}

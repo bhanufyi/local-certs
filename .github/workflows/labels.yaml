@@ -1,0 +1,33 @@
+name: Labelers
+on:
+  pull_request:
+    types:
+      - labeled
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: run tests
+        run: echo "run tests"
+
+  hotfix:
+    if: startsWith(github.head_ref, 'stage_') && github.event.label.name == 'deploy:hotfix'
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: create release tag
+        run: |
+          git config user.name gitub-actions
+          git config user.email github-actions@github.com
+          git tag | grep -q 'release-data' && git tag -d release-data
+          git ls-remote --tags origin | grep -q 'release-data' && git push origin --delete release-data
+          git tag release-data
+          git push origin release-data

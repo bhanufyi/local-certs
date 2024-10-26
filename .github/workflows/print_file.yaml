@@ -1,0 +1,20 @@
+name: Print File Contents
+
+on:
+  workflow_dispatch:
+
+jobs:
+  show-contents:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Create a sample file
+      run: |
+        echo "Hello from GitHub Actions!" > "${GITHUB_WORKSPACE}/sample.txt"
+
+    - name: Print contents using Docker
+      run: |
+        docker run --rm -v "${GITHUB_WORKSPACE}:/workspace" alpine cat /workspace/sample.txt
